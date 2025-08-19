@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Klondike Solitaire</title>
+    <title>Solitaire</title>
     <style>
       /* --- Basic Setup & Typography --- */
       :root {
@@ -520,6 +520,7 @@
         }
 
         function startGame() {
+          localStorage.removeItem('solitaireGameState');
           stock = [];
           waste = [];
           foundations = [[], [], [], []];
@@ -538,10 +539,12 @@
           dealCards(shuffledDeck);
           saveInitialState();
           renderAll();
+          saveGameState();
         }
 
         function restartGame() {
           if (!initialGameState.stock || !initialGameState.tableau) return;
+          localStorage.removeItem('solitaireGameState');
           stock = JSON.parse(JSON.stringify(initialGameState.stock));
           tableau = JSON.parse(JSON.stringify(initialGameState.tableau));
           waste = [];
@@ -554,6 +557,7 @@
           score = 0;
           updateScore(0);
           renderAll();
+          saveGameState();
         }
 
         // --- Rendering Logic ---
@@ -670,6 +674,7 @@
           lastGameState = null;
           undoBtn.disabled = true;
           renderAll();
+          saveGameState();
         }
 
         function canPlaceOnFoundation(card, foundationPile) {
@@ -720,8 +725,41 @@
         function checkWinCondition() {
           const totalCardsInFoundations = foundations.reduce((sum, pile) => sum + pile.length, 0);
           if (totalCardsInFoundations === 52) {
+            localStorage.removeItem('solitaireGameState');
             setTimeout(() => (winModal.style.display = 'flex'), 500);
           }
+        }
+
+        // --- Save & Load Game State ---
+        function saveGameState() {
+          const gameState = {
+            stock: stock,
+            waste: waste,
+            foundations: foundations,
+            tableau: tableau,
+            score: score,
+            hasSavedGame: true,
+          };
+          localStorage.setItem('solitaireGameState', JSON.stringify(gameState));
+        }
+
+        function loadGameState() {
+          const savedState = localStorage.getItem('solitaireGameState');
+          if (savedState) {
+            const gameState = JSON.parse(savedState);
+            if (gameState.hasSavedGame) {
+              stock = gameState.stock;
+              waste = gameState.waste;
+              foundations = gameState.foundations;
+              tableau = gameState.tableau;
+              score = gameState.score;
+              highScore = getHighScore();
+              updateScore(0);
+              renderAll();
+              return true;
+            }
+          }
+          return false;
         }
 
         // --- Hint System ---
@@ -920,6 +958,7 @@
             waste = [];
           }
           renderAll();
+          saveGameState();
         });
 
         document.addEventListener('dragstart', (e) => {
@@ -990,6 +1029,7 @@
               await flipTopTableauCard(sourceTableauPile, sourceTableauEl);
             }
             renderAll();
+            saveGameState();
             checkWinCondition();
           }
         });
@@ -1038,6 +1078,7 @@
 
               isAnimating = false;
               renderAll();
+              saveGameState();
               checkWinCondition();
             }
           }
@@ -1051,8 +1092,10 @@
         hintBtn.addEventListener('click', showHint);
         autoCompleteBtn.addEventListener('click', startAutoComplete);
 
-        // Start the game on page load
-        startGame();
+        // Start the game on page load or load from save
+        if (!loadGameState()) {
+          startGame();
+        }
       });
     </script>
   </body>
